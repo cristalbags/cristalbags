@@ -92,19 +92,18 @@ const externalRef = "CB-" + Date.now();
     const client = new MercadoPagoConfig({ accessToken: token });
     const preference = new Preference(client);
 
-    const pref = await preference.create({
-      body: {
-        items: mpItems,
-        external_reference: externalRef,
-        back_urls: {
-          success: process.env.NEXT_PUBLIC_SITE_URL,
-          failure: process.env.NEXT_PUBLIC_SITE_URL,
-          pending: process.env.NEXT_PUBLIC_SITE_URL
-        },
-        auto_return: "approved"
-      }
-    });
-
+const pref = await preference.create({
+  body: {
+    items: mpItems,
+    external_reference: externalRef,
+    back_urls: {
+      success: "https://cristalbags.vercel.app/success.html",
+      failure: "https://cristalbags.vercel.app/failure.html",
+      pending: "https://cristalbags.vercel.app/pending.html"
+    },
+    auto_return: "approved"
+  }
+});
     return json(200, { checkout_url: pref.init_point });
 
   } catch (err) {
