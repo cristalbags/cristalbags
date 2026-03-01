@@ -144,7 +144,7 @@ input{
 </div>
 
 <script>
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
 
   const raw =
     localStorage.getItem("cb_cart_v2") ||
@@ -161,6 +161,56 @@ document.addEventListener("DOMContentLoaded", () => {
     window.location.href = "/";
     return;
   }
+
+  /* ---------------------------
+     RENDER SUMMARY
+  ---------------------------- */
+
+  const summaryEl = document.getElementById("summary");
+  const totalEl = document.getElementById("total");
+
+  summaryEl.innerHTML = "";
+
+  let total = 0;
+
+  const res = await fetch("/data/products.json");
+  const products = await res.json();
+
+  cart.forEach(item => {
+
+    const product = products.find(p => p.sku === item.sku);
+    if (!product) return;
+
+    const qty = item.qty || item.quantity || 1;
+
+    let price = product.price_cents || 0;
+
+    // Variant support (CB-003 etc)
+    if (product.variants && item.variantId) {
+      const variant = product.variants.find(v => v.id == item.variantId);
+      if (variant && variant.price_cents) {
+        price = variant.price_cents;
+      }
+    }
+
+    const lineTotal = price * qty;
+    total += lineTotal;
+
+    const div = document.createElement("div");
+    div.className = "summary-item";
+    div.innerHTML = `
+      <span>${product.name} x${qty}</span>
+      <span>R$ ${(lineTotal / 100).toFixed(2)}</span>
+    `;
+
+    summaryEl.appendChild(div);
+  });
+
+  totalEl.textContent = "R$ " + (total / 100).toFixed(2);
+
+  /* ---------------------------
+     CHECKOUT CLICK
+  ---------------------------- */
 
   const confirmBtn = document.getElementById("confirmBtn");
 
@@ -180,20 +230,21 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const shippingData = {
-  name: document.getElementById("name").value.trim(),
-  email: document.getElementById("email").value.trim(),
-  phone: document.getElementById("phone").value.trim(),
-  street: document.getElementById("street").value.trim(),
-  number: document.getElementById("number").value.trim(),
-  city: document.getElementById("city").value.trim(),
-  state: document.getElementById("state").value.trim(),
-  zip: document.getElementById("zip").value.trim(),
-};
+      name: document.getElementById("name").value.trim(),
+      email: document.getElementById("email").value.trim(),
+      phone: document.getElementById("phone").value.trim(),
+      street: document.getElementById("street").value.trim(),
+      number: document.getElementById("number").value.trim(),
+      city: document.getElementById("city").value.trim(),
+      state: document.getElementById("state").value.trim(),
+      zip: document.getElementById("zip").value.trim(),
+    };
 
     try {
+
       console.log("Sending checkout request...");
 
-      const res = await fetch("/api/create-preference", {
+      const response = await fetch("/api/create-preference", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -202,14 +253,13 @@ document.addEventListener("DOMContentLoaded", () => {
         })
       });
 
-      const data = await res.json();
-
+      const data = await response.json();
       console.log("Response:", data);
 
       if (data.checkout_url) {
         window.location.href = data.checkout_url;
       } else {
-        alert("Erro ao iniciar pagamento.");
+        alert(data.error || "Erro ao iniciar pagamento.");
       }
 
     } catch (err) {
